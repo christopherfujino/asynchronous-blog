@@ -22,6 +22,7 @@ class Renderer {
     this.reader = new commonmark.Parser();
     this.writer = new commonmark.HtmlRenderer();
   }
+  /** Render a string of MarkDown content to an HTML string */
   render(data, parent) {
     const parsed = this.reader.parse(data); // parsed is a 'Node' tree
     const result = this.writer.render(parsed); // result is a String
@@ -34,45 +35,68 @@ class Renderer {
   }
 }
 
-/** Transform a regular github link to its raw equivalent.
- *
- * For example, https://www.github.com/org/repo/README.md should become
- * https://raw.githubusercontent.com/org/repo/master/README.md. */
-function getRawUrl(url) {
-  // Check if the format is already correct
-  const rawRegex = /^(?:https?:\/\/)raw\.githubusercontent\.com\/[\w-_.]+\/[\w-_.]+\/[\w-_.]+\/.*\.md$/i;
-  if (rawRegex.exec(url)) {
-    return url;
-  }
-  let org, repo, branch, entity;
-  // e.g. https://www.github.com/org/repo/blob/master/README.md
-  const longRegex = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w-_.]+)\/([\w-_.]+)\/blob\/([\w-_.]+)\/(.*\.md)$/i;
-  let match = longRegex.exec(url);
-  if (match) {
-    org = match[1];
-    repo = match[2];
-    branch = match[3];
-    entity = match[4];
-  } else {
+/** Wrapper around the remote repo for a Blog */
+class Blog {
+  /** Transform a regular github link to its raw equivalent.
+   *
+   * For example, https://www.github.com/org/repo/README.md should become
+   * https://raw.githubusercontent.com/org/repo/master/README.md. */
+  constructor(url, renderer) {
+    this.renderer = renderer;
+    // Check if the format is already correct
+    const rawRegex = /^(?:https?:\/\/)raw\.githubusercontent\.com\/([\w-_.]+)\/([\w-_.]+)\/([\w-_.]+)\/(.*\.md)$/i;
+    let match = rawRegex.exec(url);
+    if (match) {
+      this.org = match[1];
+      this.repo = match[2];
+      this.branch = match[3];
+      this.entity = match[4];
+      return;
+    }
+    // e.g. https://www.github.com/org/repo/blob/master/README.md
+    const longRegex = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w-_.]+)\/([\w-_.]+)\/blob\/([\w-_.]+)\/(.*\.md)$/i;
+    match = longRegex.exec(url);
+    if (match) {
+      this.org = match[1];
+      this.repo = match[2];
+      this.branch = match[3];
+      this.entity = match[4];
+      return;
+    }
     // e.g. https://www.github.com/org/repo/README.md
     const shortRegex = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w-_.]+)\/([\w-_.]+)\/(.*\.md)$/i;
     match = shortRegex.exec(url);
     if (match) {
-      org = match[1];
-      repo = match[2];
-      branch = "master";
-      entity = match[4];
+      this.org = match[1];
+      this.repo = match[2];
+      this.branch = "master";
+      this.entity = match[4];
     }
+
+    if (!this.org || !this.repo || !this.branch || !this.entity) {
+      throw new Error(`${url} does not look like a valid github link!`);
+    }
+    console.log(`Successful parse of ${url}`);
+    console.log("org", this.org);
+    console.log("repo", this.repo);
+    console.log("branch", this.branch);
+    console.log("entity", this.entity);
   }
 
-  if (!org || !repo || !branch || !entity) {
-    throw new Error(`${url} does not look like a valid github link!`);
+  isValid() {
+    return this.org && this.repo && this.branch && this.entity && true || false;
   }
 
-  return `https://raw.githubusercontent.com/${org}/${repo}/${branch}/${entity}`;
+  get url() {
+    //if (!this.isValid()) {
+    //  throw new Error("Invalid state!");
+    //}
+    return `https://raw.githubusercontent.com/${this.org}/${this.repo}/${this.branch}/${this.entity}`;
+  }
 }
 
 async function main() {
+  let blog;
   const renderer = new Renderer();
   const container = document.createElement("div");
   container.id = "app-container";
@@ -89,8 +113,8 @@ async function main() {
     "click",
     async function () {
       const url = document.getElementById("url-input").value;
-      const rawUrl = getRawUrl(url);
-      renderer.render(await fetcher(rawUrl), container);
+      blog = new Blog(url);
+      renderer.render(await fetcher(blog.url), container);
     },
   );
 }
