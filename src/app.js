@@ -176,7 +176,9 @@ async function main() {
     <label>
       <div>
         Enter a URL to a markdown file hosted on
-        <a href="https://github.com">GitHub</a>
+        <a href="https://github.com" target="_blank">
+          GitHub
+        </a>
       </div>
       <input
         id="url-input"
