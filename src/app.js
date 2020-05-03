@@ -144,6 +144,9 @@ class Blog {
             host.url,
             link.href,
           )[1];
+          if (captured.indexOf(".") > -1) {
+            continue; // Probably external link
+          }
           if (captured[0] === "#") {
             link.href = captured;
           } else {
@@ -172,14 +175,8 @@ async function main() {
   <div>
     <label>
       <div>
-        URL to markdown file hosted on
+        Enter a URL to a markdown file hosted on
         <a href="https://github.com">GitHub</a>
-      </div>
-      <div>
-        <span>e.g.</span>
-        <code>
-          https://github.com/christopherfujino/blog/blob/master/README.md
-        </code>
       </div>
       <input
         id="url-input"
