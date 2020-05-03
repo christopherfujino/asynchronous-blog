@@ -16,20 +16,7 @@ module.exports = { // arg is env
     }),
   ],
   module: {
-    rules: [
-      //{
-      //  test: /\.css$/i,
-      //  use: [
-      //    "style-loader",
-      //    "css-loader",
-      //  ],
-      //},
-      //{
-      //  test: /\.js$/i,
-      //  exclude: /node_modules/,
-      //  use: "babel-loader",
-      //},
-    ],
+    rules: [],
   },
   // Teach webpack how to resolve module imports
   // https://webpack.js.org/configuration/resolve/#root
