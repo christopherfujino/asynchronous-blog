@@ -159,7 +159,19 @@ async function main() {
   container.id = "app-container";
   const header = `
   <div>
-    <input id="url-input" type="text" size=100>
+    <label>
+      <div>
+        URL to markdown file hosted on
+        <a href="https://github.com">GitHub</a>
+      </div>
+      <div>
+        <span>e.g.</span>
+        <code>
+          https://github.com/christopherfujino/blog/blob/master/README.md
+        </code>
+      </div>
+      <input id="url-input" type="text" size=85>
+    </label>
     <button id="fetch-button">go!</button>
   </div>
   `;
