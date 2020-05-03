@@ -1,5 +1,28 @@
 import * as commonmark from "commonmark";
 
+const host = window.location.href.substring(
+  0,
+  window.location.href.lastIndexOf("/"),
+);
+
+/** Given two strings, return two substrings after common prefix */
+function diffStrings(str1, str2) {
+  let i = 0, arr1 = [], arr2 = [], inPrefix = true;
+  while(str1[i] !== undefined || str2[i] !== undefined) {
+    if (inPrefix) {
+      if (str1[i] === str2[i]) {
+        i++;
+        continue;
+      }
+      inPrefix = false;
+    }
+    arr1.push(str1[i]); // .join() will strip out `undefined`s at the end
+    arr2.push(str2[i]);
+    i++;
+  }
+  return [arr1.join(""), arr2.join("")];
+}
+
 /** Fetch endpoint and return response text */
 async function fetcher(endpoint, init = {}) {
   try {
@@ -23,12 +46,26 @@ class Renderer {
     this.writer = new commonmark.HtmlRenderer();
   }
   /** Render a string of MarkDown content to an HTML string */
-  render(data, parent) {
+  render(data, parent, middleware) {
     const parsed = this.reader.parse(data); // parsed is a 'Node' tree
+
+    // TODO implement if needed
+    //if (astMiddleware) {
+    //  const walker = parsed.walker();
+    //  let event;
+
+    //  while ((event = walker.next())) {
+    //    astMiddleware(event);
+    //  }
+    //}
     const result = this.writer.render(parsed); // result is a String
 
     const div = document.createElement("div");
     div.innerHTML = result;
+
+    if (middleware) {
+      middleware(div);
+    }
     // wipe out current contents
     parent.innerHTML = "";
     parent.append(div);
@@ -41,57 +78,77 @@ class Blog {
    *
    * For example, https://www.github.com/org/repo/README.md should become
    * https://raw.githubusercontent.com/org/repo/master/README.md. */
-  constructor(url, renderer) {
+  constructor(url, renderer, fetcher) {
     this.renderer = renderer;
-    // Check if the format is already correct
-    const rawRegex = /^(?:https?:\/\/)raw\.githubusercontent\.com\/([\w-_.]+)\/([\w-_.]+)\/([\w-_.]+)\/(.*\.md)$/i;
-    let match = rawRegex.exec(url);
-    if (match) {
-      this.org = match[1];
-      this.repo = match[2];
-      this.branch = match[3];
-      this.entity = match[4];
-      return;
+    this.fetcher = fetcher;
+    const regexes = [
+      // e.g. https://raw.githubusercontent.com/org/repo/master/README.md
+      /^(?:https?:\/\/)raw\.githubusercontent\.com\/([\w-_.]+)\/([\w-_.]+)\/([\w-_.]+)\/(.*\.md)$/i,
+      // e.g. https://www.github.com/org/repo/blob/master/README.md
+      /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w-_.]+)\/([\w-_.]+)\/blob\/([\w-_.]+)\/(.*\.md)$/i,
+    ];
+    let match;
+    for (const regex of regexes) {
+      match = regex.exec(url);
+      if (match) {
+        break;
+      }
     }
-    // e.g. https://www.github.com/org/repo/blob/master/README.md
-    const longRegex = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w-_.]+)\/([\w-_.]+)\/blob\/([\w-_.]+)\/(.*\.md)$/i;
-    match = longRegex.exec(url);
-    if (match) {
-      this.org = match[1];
-      this.repo = match[2];
-      this.branch = match[3];
-      this.entity = match[4];
-      return;
-    }
-    // e.g. https://www.github.com/org/repo/README.md
-    const shortRegex = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w-_.]+)\/([\w-_.]+)\/(.*\.md)$/i;
-    match = shortRegex.exec(url);
-    if (match) {
-      this.org = match[1];
-      this.repo = match[2];
-      this.branch = "master";
-      this.entity = match[4];
-    }
+    this.org = match[1];
+    this.repo = match[2];
+    this.branch = match[3];
+    this.entity = match[4];
 
     if (!this.org || !this.repo || !this.branch || !this.entity) {
       throw new Error(`${url} does not look like a valid github link!`);
     }
-    console.log(`Successful parse of ${url}`);
-    console.log("org", this.org);
-    console.log("repo", this.repo);
-    console.log("branch", this.branch);
-    console.log("entity", this.entity);
   }
 
   isValid() {
     return this.org && this.repo && this.branch && this.entity && true || false;
   }
 
-  get url() {
-    //if (!this.isValid()) {
-    //  throw new Error("Invalid state!");
-    //}
-    return `https://raw.githubusercontent.com/${this.org}/${this.repo}/${this.branch}/${this.entity}`;
+  url(entity) {
+    if (!this.isValid()) {
+      throw new Error("Invalid state!");
+    }
+    if (!entity) {
+      throw new Error("You didn't pass an arg to url!");
+    }
+    return `https://raw.githubusercontent.com/${this.org}/${this.repo}/${this.branch}/${entity}`;
+  }
+
+  async render(parent, entity) {
+    if (!entity) {
+      entity = this.entity;
+    }
+    const text = await this.fetcher(this.url(entity));
+    this.renderer.render(
+      text,
+      parent,
+      (div) => { // DOM middleware
+        const links = div.querySelectorAll("a");
+        for (const link of links) {
+          console.log(link);
+          console.log(link.href);
+          link.dataset.jsHref = diffStrings(
+            window.location.href,
+            link.href,
+          )[1];
+          const captured = diffStrings(
+            window.location.href,
+            link.href,
+          )[1];
+          link.href = "#";
+          link.addEventListener(
+            "click",
+            () => {
+              this.render(parent, captured);
+            },
+          );
+        }
+      },
+    );
   }
 }
 
@@ -113,8 +170,8 @@ async function main() {
     "click",
     async function () {
       const url = document.getElementById("url-input").value;
-      blog = new Blog(url);
-      renderer.render(await fetcher(blog.url), container);
+      blog = new Blog(url, renderer, fetcher);
+      await blog.render(container);
     },
   );
 }
