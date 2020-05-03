@@ -136,18 +136,18 @@ class Blog {
       (div) => { // DOM middleware
         const links = div.querySelectorAll("a");
         for (const link of links) {
-          link.dataset.jsHref = diffStrings(
-            window.location.href,
-            link.href,
-          )[1];
-          const captured = diffStrings(
+          let captured = diffStrings(
             host.url,
             link.href,
           )[1];
-          if (captured.indexOf(".") > -1) {
-            continue; // Probably external link
-          }
+          console.log("captured", captured);
           if (captured[0] === "#") {
+            link.href = captured;
+          } else if (!/\.md$/i.exec(captured)) {
+            // hopefully this is an external link
+            if (!/^https?/.exec(captured)) {
+              captured = `http://${captured}`;
+            }
             link.href = captured;
           } else {
             link.href = "#";
