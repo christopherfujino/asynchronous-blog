@@ -1,3 +1,5 @@
+import * as commonmark from "commonmark";
+
 /** Fetch endpoint and return response text */
 async function fetcher(endpoint, init = {}) {
   try {
@@ -17,17 +19,22 @@ async function fetcher(endpoint, init = {}) {
 
 function render(data) {
   const div = document.createElement("div");
-  div.innerText = data;
+  div.innerHTML = data;
   return div;
 }
 
 async function main() {
   const url =
-    "https://raw.githubusercontent.com/christopherfujino/dotfiles/master/.vimrc";
+    "https://raw.githubusercontent.com/christopherfujino/dotfiles/master/README.md";
   const raw = await fetcher(url);
 
-  console.log(raw);
-  const div = render(raw);
+  const reader = new commonmark.Parser();
+  const writer = new commonmark.HtmlRenderer();
+  const parsed = reader.parse(raw); // parsed is a 'Node' tree
+  // transform parsed if you like...
+  const result = writer.render(parsed); // result is a String
+  console.log(result);
+  const div = render(result);
   document.body.append(div);
 }
 
