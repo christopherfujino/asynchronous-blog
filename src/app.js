@@ -1,9 +1,16 @@
 import * as commonmark from "commonmark";
 
-const host = window.location.href.substring(
-  0,
-  window.location.href.lastIndexOf("/"),
-);
+class Host {
+  constructor(url) {
+    const hashIndex = url.lastIndexOf("#");
+    this.url = hashIndex === -1
+      ? url
+      // strip off trailing hash
+      : url.substring(0, hashIndex);
+  }
+}
+
+const host = new Host(window.location.href);
 
 /** Given two strings, return two substrings after common prefix */
 function diffStrings(str1, str2) {
@@ -129,23 +136,27 @@ class Blog {
       (div) => { // DOM middleware
         const links = div.querySelectorAll("a");
         for (const link of links) {
-          console.log(link);
-          console.log(link.href);
           link.dataset.jsHref = diffStrings(
             window.location.href,
             link.href,
           )[1];
           const captured = diffStrings(
-            window.location.href,
+            host.url,
             link.href,
           )[1];
-          link.href = "#";
-          link.addEventListener(
-            "click",
-            () => {
-              this.render(parent, captured);
-            },
-          );
+          if (captured[0] === "#") {
+            link.href = captured;
+          } else {
+            link.href = "#";
+            link.addEventListener(
+              "click",
+              () => this.render(parent, captured),
+            );
+          }
+        }
+        const headers = div.querySelectorAll("h1, h2, h3, h4, h5, h6");
+        for (const header of headers) {
+          header.id = header.innerText.toLowerCase();
         }
       },
     );
@@ -170,7 +181,11 @@ async function main() {
           https://github.com/christopherfujino/blog/blob/master/README.md
         </code>
       </div>
-      <input id="url-input" type="text" size=85>
+      <input
+        id="url-input"
+        type="text"
+        size=85
+        value="https://github.com/christopherfujino/blog/blob/master/README.md">
     </label>
     <button id="fetch-button">go!</button>
   </div>
