@@ -31,7 +31,7 @@ class Renderer {
     // wipe out current contents
     parent.innerHTML = "";
     parent.append(div);
-  };
+  }
 }
 
 /** Transform a regular github link to its raw equivalent.
